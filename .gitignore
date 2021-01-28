@@ -1,0 +1,10 @@
+syntax: glob
+*.pyc
+*.log
+build/*
+dronewar.egg-info/*
+dist/*
+dronewar.egg*
+.tox/*
+.cache/*
+.ropeproject/*
