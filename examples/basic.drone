@@ -1,0 +1,15 @@
+	.hardware
+%CPU medium
+%MEM 4KB
+%CHASSIS destroyer
+%TRACKS fast
+%WEP1 test
+
+	.data
+; data starts here
+foo:
+	mov %bx, %ax 
+	; new comment
+	swp %foo
+	test %ax, %ax		; some comment here
+	jgt label
