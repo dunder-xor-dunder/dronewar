@@ -26,23 +26,105 @@ class Syntax(Enum):
         r'^%(?P<id>\w+)\s+(?P<val>\S+)' +
         COMMENT_SUFFIX
     )
-    instr1 = re.compile(
-        r'^(?P<instr>\w+)\s+(?P<op1>[^,;\s]+)' +
+    instr = re.compile(
+        r'^(?P<instr>\w+)\s*(?P<rest>[^;]*)' +
         COMMENT_SUFFIX
     )
-    instr2 = re.compile(
-        r'^(?P<instr>\w+)\s+(?P<op1>[^,;\s]+),\s+(?P<op2>[^;\s]+)' +
-        COMMENT_SUFFIX
-    )
+
+
+class InstrDef:
+    __slots__ = ('name', 'num_ops')
+
+    def __init__(self, name, num_ops):
+        self.name = name
+        self.num_ops = num_ops
+
+
+class InstrType(Enum):
+    """
+    reference: https://www.cs.virginia.edu/~evans/cs216/guides/x86.html
+    """
+    INT = InstrDef('int', 1)
+    MOV = InstrDef('mov', 2)
+    PUSH = InstrDef('push', 1)
+    POP = InstrDef('pop', 1)
+    LEA = InstrDef('lea', 2)
+    ADD = InstrDef('add', 2)
+    SUB = InstrDef('sub', 2)
+    INC = InstrDef('inc', 1)
+    DEC = InstrDef('dec', 1)
+    MUL = InstrDef('mul', 2)
+    DIV = InstrDef('div', 2)
+    AND = InstrDef('and', 2)
+    OR = InstrDef('or', 2)
+    XOR = InstrDef('xor', 2)
+    NOT = InstrDef('not', 1)
+    SHL = InstrDef('shl', 2)
+    SHR = InstrDef('shr', 2)
+    CMP = InstrDef('cmp', 1)
+    JMP = InstrDef('jmp', 1)
+    JE = InstrDef('je', 1)
+    JNE = InstrDef('jne', 1)
+    JZ = InstrDef('jz', 1)
+    JG = InstrDef('jg', 1)
+    JGE = InstrDef('jge', 1)
+    JL = InstrDef('jl', 1)
+    JLE = InstrDef('jle', 1)
+    CALL = InstrDef('call', 1)
+    RET = InstrDef('ret', 1)
+
+    @classmethod
+    def get(cls, reg):
+        try:
+            return cls[reg.upper()]
+        except KeyError:
+            return None
+
+
+class Instr(namedtuple(
+    'Instr',
+    ('instr', 'type', 'ops'),
+)):
+
+    def __str__(self):
+        return f'{self.instr} {", ".join(self.ops)}'
+
+    def __repr__(self):
+        return f'Instr[{self.instr}]({", ".join(self.ops)})'
+
+    @classmethod
+    def parse(cls, name, rest):
+        name = name.lower()
+        ops = None
+        return cls(
+            instr=name,
+            ops=ops,
+        )
 
 
 class CodeLine(namedtuple(
     'CodeLine',
-    ('syntax', 'groups', 'line_no'),
+    ('syntax', 'groups', 'line_no', 'instr'),
 )):
 
     def __repr__(self):
-        return f'CodeLine[{self.line_no}]({self.syntax.name}, {self.groups!r})'
+        return (
+            f'CodeLine[{self.line_no}]('
+            f'type={self.syntax.name}, '
+            f'groups={self.groups!r}, '
+            f'instr={str(self.instr)!r}'
+            ')'
+        )
+
+    @classmethod
+    def parse_instr(cls, *, syntax, groups, line_no):
+        instr = Instr.parse(groups['instr'], groups['rest'])
+        return cls(
+            syntax=syntax,
+            groups=groups,
+            line_no=line_no,
+            instr=instr,
+        )
 
 
 def parse_code(text):
@@ -53,19 +135,26 @@ def parse_code(text):
         for syntax in Syntax:
             match = syntax.value.match(line)
             if match:
-                yield CodeLine(
-                    syntax=syntax,
-                    groups=match.groupdict(),
-                    line_no=i + 1,
-                )
+                if syntax is Syntax.instr:
+                    yield CodeLine.parse_instr(
+                        syntax=syntax,
+                        groups=match.groupdict(),
+                        line_no=i + 1,
+                    )
+                else:
+                    yield CodeLine(
+                        syntax=syntax,
+                        groups=match.groupdict(),
+                        line_no=i + 1,
+                    )
                 break
         else:
             raise ParserError(f'failed to parse: {line}')
 
 
 def get_sections(text):
-    sections = {'_global': []}
-    current = '_global'
+    sections = {'_GLOBAL': []}
+    current = '_GLOBAL'
     for code in parse_code(text):
         if code.syntax is Syntax.section:
             current = code.groups['name']

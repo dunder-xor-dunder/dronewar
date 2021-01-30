@@ -3,13 +3,17 @@
 %MEM 4KB
 %CHASSIS destroyer
 %TRACKS fast
-%WEP1 test
+%AT1 test
+%BT1 test
+%BT2 test
 
 	.data
 ; data starts here
-foo:
-	mov %bx, %ax 
-	; new comment
-	swp %foo
-	test %ax, %ax		; some comment here
-	jgt label
+start:
+	mov $ax, $bx
+	dec $ax
+	int 0x80
+	swp $cx, $dx 
+	push $ax
+	mov $ax, [$bx + 4]
+	mov $cx, [$dx + 4$bx]
