@@ -72,6 +72,7 @@ class InstrType(Enum):
     JLE = InstrDef('jle', 1)
     CALL = InstrDef('call', 1)
     RET = InstrDef('ret', 1)
+    SWP = InstrDef('swp', 2)
 
     @classmethod
     def get(cls, reg):
@@ -79,6 +80,9 @@ class InstrType(Enum):
             return cls[reg.upper()]
         except KeyError:
             return None
+
+    def __str__(self):
+        return self.name
 
 
 class Instr(namedtuple(
@@ -95,9 +99,17 @@ class Instr(namedtuple(
     @classmethod
     def parse(cls, name, rest):
         name = name.lower()
-        ops = None
+        instr_type = InstrType.get(name)
+        if instr_type is None:
+            raise ParserError(f'{name} is not a valid instruction')
+        csv = [
+            x.strip()
+            for x in rest.split(',')
+        ]
+        ops = csv
         return cls(
             instr=name,
+            type=instr_type,
             ops=ops,
         )
 
@@ -112,7 +124,7 @@ class CodeLine(namedtuple(
             f'CodeLine[{self.line_no}]('
             f'type={self.syntax.name}, '
             f'groups={self.groups!r}, '
-            f'instr={str(self.instr)!r}'
+            f'instr={self.instr!r}'
             ')'
         )
 
@@ -146,6 +158,7 @@ def parse_code(text):
                         syntax=syntax,
                         groups=match.groupdict(),
                         line_no=i + 1,
+                        instr=None,
                     )
                 break
         else:
